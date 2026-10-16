@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  bio          String?
+  emoji        String   @default("🍅")
+  color        String   @default("orchid")
+  createdAt    DateTime @default(now())
+
+  authSessions  AuthSession[]
+  subjects      Subject[]
+  studySessions StudySession[]
+  comments      Comment[]
+  reactions     Reaction[]
+  memberships   RoomMember[]
+  ownedRooms    Room[]         @relation("RoomOwner")
+}
+
+model AuthSession {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  emoji     String   @default("📚")
+  color     String   @default("forest")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studySessions StudySession[]
+
+  @@unique([userId, name])
+}
+
+enum StudyStatus {
+  RUNNING
+  PAUSED
+  FINISHED
+}
+
+/// Uma sessão de estudo cronometrada. Quando finalizada vira um "check-in"
+/// no feed (com nota opcional), igual ao post de treino do GymRats.
+model StudySession {
+  id               String      @id @default(cuid())
+  userId           String
+  subjectId        String?
+  status           StudyStatus @default(RUNNING)
+  startedAt        DateTime    @default(now())
+  /// Início do trecho atual em execução (null quando pausado/finalizado)
+  segmentStartedAt DateTime?   @default(now())
+  /// Segundos acumulados de trechos já fechados
+  accumulatedSec   Int         @default(0)
+  lastPingAt       DateTime    @default(now())
+  endedAt          DateTime?
+  durationSec      Int         @default(0)
+  title            String?
+  note             String?
+  createdAt        DateTime    @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   Subject?   @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  comments  Comment[]
+  reactions Reaction[]
+
+  @@index([userId, status])
+  @@index([endedAt])
+}
+
+model Comment {
+  id             String   @id @default(cuid())
+  studySessionId String
+  userId         String
+  body           String
+  createdAt      DateTime @default(now())
+
+  studySession StudySession @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([studySessionId])
+}
+
+model Reaction {
+  id             String   @id @default(cuid())
+  studySessionId String
+  userId         String
+  emoji          String
+  createdAt      DateTime @default(now())
+
+  studySession StudySession @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([studySessionId, userId, emoji])
+}
+
+/// Sala de competição: soma o tempo de estudo dos membros entre startsAt e endsAt.
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  emoji       String   @default("🏆")
+  color       String   @default("orchid")
+  inviteCode  String   @unique
+  startsAt    DateTime
+  endsAt      DateTime
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  owner   User         @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members RoomMember[]
+}
+
+model RoomMember {
+  id       String   @id @default(cuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}

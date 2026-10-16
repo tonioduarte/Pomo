@@ -1,0 +1,15 @@
+# Alternativa ao `npm run db:dev`: Postgres em Docker.
+# DATABASE_URL="postgresql://pomo:pomo@localhost:5432/pomo"
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: pomo
+      POSTGRES_PASSWORD: pomo
+      POSTGRES_DB: pomo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pomo-db:/var/lib/postgresql/data
+volumes:
+  pomo-db:
