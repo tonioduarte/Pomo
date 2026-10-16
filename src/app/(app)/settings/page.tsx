@@ -13,7 +13,7 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:py-10">
       <PageHeader eyebrow="seu cantinho" title="Configurações" />
       <section className="sticker p-5 sm:p-8">
-        <ProfileForm user={user} />
+        <ProfileForm user={{ name: user.name, bio: user.bio, emoji: user.emoji, color: user.color }} />
       </section>
       <section className="sticker mt-6 flex items-center justify-between gap-4 p-5">
         <div>

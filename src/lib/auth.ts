@@ -13,7 +13,11 @@ function hashToken(token: string) {
 
 export async function createAuthSession(userId: string) {
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  // Faxina: sessões e contadores de tentativa vencidos não ficam no banco.
+  await db.authSession.deleteMany({ where: { expiresAt: { lt: now } } });
+  await db.rateLimit.deleteMany({ where: { resetAt: { lt: now } } });
   await db.authSession.create({ data: { id: hashToken(token), userId, expiresAt } });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -38,7 +42,11 @@ export const getCurrentUser = cache(async () => {
     where: { id: hashToken(token) },
     include: { user: { omit: { passwordHash: true } } },
   });
-  if (!session || session.expiresAt < new Date()) return null;
+  if (!session) return null;
+  if (session.expiresAt < new Date()) {
+    await db.authSession.deleteMany({ where: { id: session.id } });
+    return null;
+  }
   return session.user;
 });
 

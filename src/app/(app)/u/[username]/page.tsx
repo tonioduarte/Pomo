@@ -26,12 +26,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
 
   const isMe = profile.id === viewer.id;
   const inCircle = isMe || (await circleUserIds(viewer.id)).includes(profile.id);
-  const [stats, feed] = await Promise.all([
-    getUserStats(profile.id),
-    inCircle ? getFeed([profile.id], { take: 10 }) : Promise.resolve([]),
-  ]);
   const c = color(profile.color);
-  const maxSubject = Math.max(1, stats.bySubject[0]?.sec ?? 1);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-10">
@@ -52,6 +47,24 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
         </div>
       </section>
 
+      {inCircle ? (
+        <ProfileDetails userId={profile.id} viewerId={viewer.id} />
+      ) : (
+        <EmptyState emoji="🔒" title="Perfil privado">
+          Entre numa sala com {profile.name.split(" ")[0]} para ver estatísticas e check-ins.
+        </EmptyState>
+      )}
+    </div>
+  );
+}
+
+/** Estatísticas e check-ins: só aparecem para quem divide uma sala com a pessoa. */
+async function ProfileDetails({ userId, viewerId }: { userId: string; viewerId: string }) {
+  const [stats, feed] = await Promise.all([getUserStats(userId), getFeed([userId], { take: 10 })]);
+  const maxSubject = Math.max(1, stats.bySubject[0]?.sec ?? 1);
+
+  return (
+    <>
       <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile index={0} label="Total" value={formatDuration(stats.totalSec)} tint="orchid" shape="triangle" />
         <StatTile index={1} label="Sessões" value={String(stats.sessionCount)} tint="forest" shape="diamond" />
@@ -93,16 +106,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
 
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-2xl font-bold">Check-ins</h2>
-        {!inCircle ? (
-          <EmptyState emoji="🔒" title="Check-ins privados">
-            Entre numa sala com {profile.name.split(" ")[0]} para ver os check-ins.
-          </EmptyState>
-        ) : feed.length === 0 ? (
+        {feed.length === 0 ? (
           <EmptyState emoji="🌱" title="Nenhum check-in ainda" />
         ) : (
-          feed.map((s, i) => <FeedCard key={s.id} session={s} viewerId={viewer.id} index={i} />)
+          feed.map((s, i) => <FeedCard key={s.id} session={s} viewerId={viewerId} index={i} />)
         )}
       </section>
-    </div>
+    </>
   );
 }

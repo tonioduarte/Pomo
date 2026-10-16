@@ -21,7 +21,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         },
       }}
     >
-      <AppShell user={user}>{children}</AppShell>
+      <AppShell
+        // Só o que o menu exibe — nada de email ou outros dados da conta no navegador.
+        user={{ username: user.username, name: user.name, emoji: user.emoji, color: user.color }}
+      >{children}</AppShell>
     </StudyProvider>
   );
 }

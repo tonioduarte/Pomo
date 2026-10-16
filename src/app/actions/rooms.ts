@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { hitRateLimit, RULES, tooManyAttemptsMessage } from "@/lib/rate-limit";
 import { roomSchema, type FormState } from "@/lib/validation";
 
 function inviteCode() {
@@ -32,6 +33,9 @@ export async function createRoom(_: FormState, formData: FormData): Promise<Form
 
 export async function joinRoom(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
+  const limit = await hitRateLimit(`join:user:${user.id}`, RULES.joinRoomUser);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSec) };
+
   const code = formData.get("code")?.toString().trim().toUpperCase() ?? "";
   const room = await db.room.findUnique({ where: { inviteCode: code } });
   if (!room) return { error: "Não achamos nenhuma sala com esse código" };
